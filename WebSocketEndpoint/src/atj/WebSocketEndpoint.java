@@ -1,5 +1,6 @@
 package atj;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.websocket.OnClose;
@@ -39,5 +40,19 @@ public class WebSocketEndpoint {
 			
 		} catch (IOException e) {e.printStackTrace();}
 	}
+	
+	
+	@OnMessage
+	public void onMessage(ByteBuffer buf, Session session){
+		try {
+			for (Session oneSession : session.getOpenSessions()){
+				if (oneSession.isOpen()){
+					oneSession.getBasicRemote().sendBinary(buf);
+				}
+			}
+		} 
+		catch (IOException e){ e.printStackTrace(); }
+	}
+
 	
 }
