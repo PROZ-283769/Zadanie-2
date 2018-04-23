@@ -10,14 +10,12 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
-
 @ApplicationScoped
 @ServerEndpoint("/websocketendpoint")
 public class WebSocketEndpoint {
 
 	@OnOpen
 	public void onOpen(Session session) {
-		
 	}
 	
 	@OnClose
@@ -31,6 +29,7 @@ public class WebSocketEndpoint {
 	
 	@OnMessage
 	public void onMessage(String message, Session session) {
+		System.out.println("Got string!");
 		try {
 			for(Session oneSession : session.getOpenSessions()) {
 				if(oneSession.isOpen()) {
@@ -44,15 +43,15 @@ public class WebSocketEndpoint {
 	
 	@OnMessage
 	public void onMessage(ByteBuffer buf, Session session){
+		System.out.println("Got file! of size:"+buf.capacity());
 		try {
-			for (Session oneSession : session.getOpenSessions()){
-				if (oneSession.isOpen()){
+			for(Session oneSession : session.getOpenSessions()) {
+				if(oneSession.isOpen()) {
 					oneSession.getBasicRemote().sendBinary(buf);
 				}
 			}
-		} 
-		catch (IOException e){ e.printStackTrace(); }
+			
+		} catch (IOException e) {e.printStackTrace();}
 	}
-
 	
 }

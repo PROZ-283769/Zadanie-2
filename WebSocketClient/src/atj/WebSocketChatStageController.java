@@ -1,8 +1,11 @@
 package atj;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.util.HashMap;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.CloseReason;
@@ -14,14 +17,16 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
 
-import javafx.event.ActionEvent;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.FileChooser;
 
 public class WebSocketChatStageController {
 	@FXML  TextField userTextField;
@@ -29,14 +34,24 @@ public class WebSocketChatStageController {
 	@FXML  TextField	messageTextField;
 	@FXML  Button setButton;
 	@FXML  Button sendButton;
+	@FXML  Button fileUploadButton;
 	@FXML  Label userLabel;
+	@FXML  ListView<String> fileListView;
 	
+	private FileChooser fileChooser;
+	//private  ObservableList<byte[]> fileList;
+	private HashMap<String, byte[]> files;
 	private String user;
 	private WebSocketClient webSocketClient;
 	
 	@FXML private void initialize() {
 		webSocketClient = new WebSocketClient();
 		user = userTextField.getText();
+		//fileList =  FXCollections.observableArrayList();
+		fileChooser = new FileChooser();
+		files = new HashMap<String, byte[]>();
+		fileChooser.setTitle("Upload file");
+
 	}
 	
 	@FXML private void setButton_Click() {
@@ -47,6 +62,31 @@ public class WebSocketChatStageController {
 	@FXML private void sendButton_Click() {
 		webSocketClient.sendTextMessage(messageTextField.getText());
 		messageTextField.clear();
+	}
+	
+	
+	
+	@FXML private void fileUploadButton_Click() {
+		File selectedFile = fileChooser.showOpenDialog(null);
+		if(selectedFile != null) {
+			try {
+				byte[] fileContent = Files.readAllBytes(selectedFile.toPath());
+				String filename = selectedFile.getName();
+				System.out.println("ff"+filename);
+				ByteBuffer buf = ByteBuffer.allocateDirect((int)4+filename.getBytes().length+fileContent.length);
+				buf.putInt(filename.length());
+				buf.put(filename.getBytes());
+				buf.put(fileContent);
+				buf.flip();
+				//byte[] a = new byte[10];
+				//ByteBuffer buf = ByteBuffer.allocateDirect((int)10);
+				//buf.put((byte)0x11);
+				
+				webSocketClient.sendBinaryMessage(buf);
+			} catch (IOException e) {
+				e.printStackTrace();
+		    }
+		}
 	}
 	
 	@FXML
@@ -85,7 +125,15 @@ public class WebSocketChatStageController {
 		
 		@OnMessage public void onMessage(ByteBuffer buf, Session session) {
 			System.out.println("Binary message was received");
-			//encodeBackToMessageAndPopulate(message);
+			int len = buf.getInt();
+			byte[] tmp = new byte[len];
+			buf.get(tmp);
+			String filename = new String(tmp);
+			byte[] fileContent = new byte[buf.remaining()];
+			buf.get(fileContent);
+			files.put(filename, fileContent);
+			Platform.runLater(() -> fileListView.getItems().add(filename));
+			System.out.println("filename:"+filename);
 		}
 		
 		private void connectToWebSocket() {
@@ -97,7 +145,7 @@ public class WebSocketChatStageController {
 		}
 		
 		public void sendTextMessage(String message) {
-			System.out.println("sending message: "+message);
+			System.out.println("sending text message: "+message);
 			try {
 				session.getBasicRemote().sendText(user+": "+message);
 			}
@@ -107,6 +155,7 @@ public class WebSocketChatStageController {
 		}
 		
 		public void sendBinaryMessage(ByteBuffer buf) {
+			System.out.println("sending file of size:");
 			try {
 				session.getBasicRemote().sendBinary(buf);
 			}
