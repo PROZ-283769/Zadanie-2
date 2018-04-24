@@ -1,6 +1,7 @@
 package atj;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
 
 public class WebSocketChatStageController {
@@ -95,6 +97,27 @@ public class WebSocketChatStageController {
 	        sendButton_Click();
 	    }
 	}
+	@FXML 
+	public void fileListView_Click() {
+           Integer fileIndex = fileListView.getSelectionModel().getSelectedIndex();
+           
+           if(fileIndex<0)
+        	   return;
+           	FileChooser fileChooser = new FileChooser();
+           	fileChooser.setInitialFileName(fileListView.getSelectionModel().getSelectedItem());
+	   		File file = fileChooser.showSaveDialog(null);
+	   		if(file != null) {
+				try {
+					FileOutputStream fileOutputStream = new FileOutputStream(file);
+					byte[] fileContents = files.get(fileListView.getSelectionModel().getSelectedItem());
+					fileOutputStream.write(fileContents);
+					fileOutputStream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+	   		}
+        }
+
 	
 	public void closeSession(CloseReason closeReason) {
 		try {
