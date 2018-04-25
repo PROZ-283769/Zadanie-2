@@ -27,9 +27,9 @@
          <children>
             <Label fx:id="userLabel" text="User:" GridPane.halignment="RIGHT" />
             <Button fx:id="setButton" mnemonicParsing="false" onAction="#setButton_Click" prefHeight="70.0" prefWidth="104.0" text="Set" GridPane.columnIndex="2" />
-            <TextField fx:id="userTextField" GridPane.columnIndex="1" />
+            <TextField fx:id="userTextField" onKeyPressed="#handleSetEnterPressed" GridPane.columnIndex="1" />
             <TextArea fx:id="historyTextArea" editable="false" prefHeight="200.0" prefWidth="200.0" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-            <TextField fx:id="messageTextField" onKeyPressed="#handleEnterPressed" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <TextField fx:id="messageTextField" onKeyPressed="#handleSendEnterPressed" GridPane.columnIndex="1" GridPane.rowIndex="2" />
             <Button fx:id="sendButton" mnemonicParsing="false" onMouseClicked="#sendButton_Click" prefHeight="73.0" prefWidth="108.0" text="Send" GridPane.columnIndex="2" GridPane.rowIndex="2" />
             <Button fx:id="fileUploadButton" mnemonicParsing="false" onMouseClicked="#fileUploadButton_Click" prefHeight="78.0" prefWidth="143.0" text="Upload File" GridPane.rowIndex="2">
                <GridPane.margin>

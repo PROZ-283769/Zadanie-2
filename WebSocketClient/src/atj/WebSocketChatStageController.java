@@ -20,6 +20,8 @@ import javax.websocket.WebSocketContainer;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -27,7 +29,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
 
 public class WebSocketChatStageController {
@@ -49,7 +50,6 @@ public class WebSocketChatStageController {
 	@FXML private void initialize() {
 		webSocketClient = new WebSocketClient();
 		user = userTextField.getText();
-		//fileList =  FXCollections.observableArrayList();
 		fileChooser = new FileChooser();
 		files = new HashMap<String, byte[]>();
 		fileChooser.setTitle("Upload file");
@@ -62,6 +62,14 @@ public class WebSocketChatStageController {
 	}
 	
 	@FXML private void sendButton_Click() {
+		if(user.isEmpty()) {
+			Alert alert = new Alert(AlertType.INFORMATION);
+			alert.setTitle("Uwaga");
+			alert.setHeaderText(null);
+			alert.setContentText("Przed wysłaniem wiadomości proszę ustawić nick!");
+			alert.showAndWait();
+			return;
+		}
 		webSocketClient.sendTextMessage(messageTextField.getText());
 		messageTextField.clear();
 	}
@@ -72,17 +80,22 @@ public class WebSocketChatStageController {
 		File selectedFile = fileChooser.showOpenDialog(null);
 		if(selectedFile != null) {
 			try {
+				System.out.println(selectedFile.length());
+				if (selectedFile.length() >50*1024*1024) {
+					Alert alert = new Alert(AlertType.INFORMATION);
+					alert.setTitle("Uwaga");
+					alert.setHeaderText(null);
+					alert.setContentText("Plik jest za duży! (powyżej 50MB)");
+					alert.showAndWait();
+					return;
+				}
 				byte[] fileContent = Files.readAllBytes(selectedFile.toPath());
 				String filename = selectedFile.getName();
-				System.out.println("ff"+filename);
 				ByteBuffer buf = ByteBuffer.allocateDirect((int)4+filename.getBytes().length+fileContent.length);
 				buf.putInt(filename.length());
 				buf.put(filename.getBytes());
 				buf.put(fileContent);
 				buf.flip();
-				//byte[] a = new byte[10];
-				//ByteBuffer buf = ByteBuffer.allocateDirect((int)10);
-				//buf.put((byte)0x11);
 				
 				webSocketClient.sendBinaryMessage(buf);
 			} catch (IOException e) {
@@ -92,11 +105,19 @@ public class WebSocketChatStageController {
 	}
 	
 	@FXML
-	public void handleEnterPressed(KeyEvent event) {
+	public void handleSendEnterPressed(KeyEvent event) {
 	    if (event.getCode() == KeyCode.ENTER) {
 	        sendButton_Click();
 	    }
 	}
+	
+	@FXML
+	public void handleSetEnterPressed(KeyEvent event) {
+	    if (event.getCode() == KeyCode.ENTER) {
+	        setButton_Click();
+	    }
+	}
+	
 	@FXML 
 	public void fileListView_Click() {
            Integer fileIndex = fileListView.getSelectionModel().getSelectedIndex();
@@ -116,6 +137,7 @@ public class WebSocketChatStageController {
 					e.printStackTrace();
 				}
 	   		}
+	   		fileListView.getSelectionModel().clearSelection();
         }
 
 	
