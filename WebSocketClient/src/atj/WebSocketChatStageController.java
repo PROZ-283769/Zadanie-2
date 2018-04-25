@@ -1,12 +1,13 @@
 package atj;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.util.HashMap;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.CloseReason;
@@ -43,15 +44,14 @@ public class WebSocketChatStageController {
 	
 	private FileChooser fileChooser;
 	//private  ObservableList<byte[]> fileList;
-	private HashMap<String, byte[]> files;
 	private String user;
+	OutputStream userFileStream;
 	private WebSocketClient webSocketClient;
 	
 	@FXML private void initialize() {
 		webSocketClient = new WebSocketClient();
 		user = userTextField.getText();
 		fileChooser = new FileChooser();
-		files = new HashMap<String, byte[]>();
 		fileChooser.setTitle("Upload file");
 
 	}
@@ -74,33 +74,25 @@ public class WebSocketChatStageController {
 		messageTextField.clear();
 	}
 	
-	
-	
 	@FXML private void fileUploadButton_Click() {
 		File selectedFile = fileChooser.showOpenDialog(null);
 		if(selectedFile != null) {
 			try {
-				System.out.println(selectedFile.length());
-				if (selectedFile.length() >50*1024*1024) {
-					Alert alert = new Alert(AlertType.INFORMATION);
-					alert.setTitle("Uwaga");
-					alert.setHeaderText(null);
-					alert.setContentText("Plik jest za duży! (powyżej 50MB)");
-					alert.showAndWait();
-					return;
-				}
-				byte[] fileContent = Files.readAllBytes(selectedFile.toPath());
 				String filename = selectedFile.getName();
-				ByteBuffer buf = ByteBuffer.allocateDirect((int)4+filename.getBytes().length+fileContent.length);
-				buf.putInt(filename.length());
-				buf.put(filename.getBytes());
-				buf.put(fileContent);
-				buf.flip();
-				
-				webSocketClient.sendBinaryMessage(buf);
-			} catch (IOException e) {
-				e.printStackTrace();
-		    }
+				webSocketClient.sendFilename("DELETE_"+filename);
+				InputStream input = new FileInputStream(selectedFile);
+				OutputStream output = webSocketClient.session.getBasicRemote().getSendStream();
+				byte[] buffer = new byte[1024];
+				int read;
+				while ((read = input.read(buffer)) > 0) {
+					output.write(buffer, 0, read);
+				}
+				input.close();
+				output.close();
+			}catch (IOException e) {
+				 e.printStackTrace();
+			}
+			
 		}
 	}
 	
@@ -128,11 +120,14 @@ public class WebSocketChatStageController {
            	fileChooser.setInitialFileName(fileListView.getSelectionModel().getSelectedItem());
 	   		File file = fileChooser.showSaveDialog(null);
 	   		if(file != null) {
-				try {
-					FileOutputStream fileOutputStream = new FileOutputStream(file);
-					byte[] fileContents = files.get(fileListView.getSelectionModel().getSelectedItem());
-					fileOutputStream.write(fileContents);
-					fileOutputStream.close();
+				try {				
+				    InputStream initialStream = new FileInputStream("DELETE_"+fileListView.getSelectionModel().getSelectedItem());
+				    byte[] buffer = new byte[initialStream.available()];
+				    initialStream.read(buffer);
+				    OutputStream outStream = new FileOutputStream(file);
+				    outStream.write(buffer);
+					outStream.close();
+					initialStream.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -160,25 +155,45 @@ public class WebSocketChatStageController {
 		}
 		
 		@OnClose public void onClose(CloseReason closeReason) {
+			File directory = new File("./");
+			for (File f : directory.listFiles()) {
+			    if (f.getName().startsWith("DELETE_")) {
+			        f.delete();
+			    }
+			}
 			System.out.println("Connection is closed due to: "+closeReason.getReasonPhrase());
 		}
 		
 		@OnMessage public void onMessage(String message, Session session) {
-			System.out.println("String message was received");
-			historyTextArea.appendText(message+'\n');
+			if(message.indexOf(':')>=0) {
+				System.out.println("aString message was received");
+				historyTextArea.appendText(message+'\n');
+				return;
+			}
+			System.out.println("filename was received!");
+			try {
+			userFileStream = new FileOutputStream( new File(message));
+			if(userFileStream==null)
+				System.out.println("OnMessage NULL UFS");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			Platform.runLater(() -> fileListView.getItems().add(message));
+			System.out.println("filename:"+message);
 		}
 		
-		@OnMessage public void onMessage(ByteBuffer buf, Session session) {
-			System.out.println("Binary message was received");
-			int len = buf.getInt();
-			byte[] tmp = new byte[len];
-			buf.get(tmp);
-			String filename = new String(tmp);
-			byte[] fileContent = new byte[buf.remaining()];
-			buf.get(fileContent);
-			files.put(filename, fileContent);
-			Platform.runLater(() -> fileListView.getItems().add(filename));
-			System.out.println("filename:"+filename);
+		
+		@OnMessage public void onMessage(ByteBuffer buf, boolean last, Session session) {
+			try {
+				if(userFileStream==null) {
+					System.out.println("UFS==NULL");
+					return;
+				}
+				//System.out.println(buf.remaining());
+				userFileStream.write(buf.array());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		private void connectToWebSocket() {
@@ -199,10 +214,20 @@ public class WebSocketChatStageController {
 			}
 		}
 		
-		public void sendBinaryMessage(ByteBuffer buf) {
-			System.out.println("sending file of size:");
+		public void sendFilename(String filename) {
+			System.out.println("Sending filename: "+filename);
 			try {
-				session.getBasicRemote().sendBinary(buf);
+				session.getBasicRemote().sendText(filename);
+			}
+			catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+		
+		public void sendPartialBinaryMessage(ByteBuffer buf, boolean last) {
+			//System.out.println("Sending partial binary file");
+			try {
+				session.getBasicRemote().sendBinary(buf, last);
 			}
 			catch (IOException ex) {
 				ex.printStackTrace();

@@ -41,17 +41,19 @@ public class WebSocketEndpoint {
 	}
 	
 	
+	
 	@OnMessage
-	public void onMessage(ByteBuffer buf, Session session){
-		System.out.println("Got file! of size:"+buf.capacity());
+	public void onMessage(ByteBuffer buf, boolean last, Session session) {
+		//System.out.println("Got partial file! of size:"+buf.capacity());
 		try {
 			for(Session oneSession : session.getOpenSessions()) {
 				if(oneSession.isOpen()) {
-					oneSession.getBasicRemote().sendBinary(buf);
+					oneSession.getBasicRemote().sendBinary(buf, last);
 				}
 			}
 			
 		} catch (IOException e) {e.printStackTrace();}
+		
 	}
 	
 }
